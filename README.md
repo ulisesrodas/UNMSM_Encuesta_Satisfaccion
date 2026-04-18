@@ -1,18 +1,18 @@
 # Encuesta de satisfacción a estudiantes de CCSS UNMSM
-Este repositorio presenta un ecosistema completo de Ciencia de Datos aplicada a la Gestión Universitaria. El proyecto automatiza el procesamiento de encuestas de satisfacción de la Facultad de Ciencias Sociales, transformando datos crudos en un Informe Dinámico (Quarto) y un Dashboard Interactivo (Power BI)
+Este repositorio presenta un ecosistema completo de Ciencia de Datos aplicada a la Gestión Universitaria. El proyecto automatiza el procesamiento de encuestas de satisfacción a estudiantes de la Facultad de Ciencias Sociales, transformando datos crudos en un Informe Dinámico (Quarto) y un Dashboard Interactivo (Power BI) en torno a tres temáticas:
+
+## 📈 Hallazgos Clave del Análisis:
+El informe revela dimensiones críticas que requieren atención inmediata:
+* **Perfil de la Muestra**: Predominantemente femenina (62.2%) con una fuerte concentración en la Carrera 1 (46.3%).
+* **Infraestructura (Prioridad Crítica)**: Es la dimensión con mayor insatisfacción (44.5%), principalmente por falta de laboratorios y espacios de estudio.
+* **Brecha Académica:** Un 42.2% de insatisfacción en el Plan de Estudios debido a una percepción de clases "excesivamente teóricas".
+* **Desafío Laboral:** Incertidumbre en empleabilidad (37.4% de insatisfacción), donde los estudiantes demandan mejores puentes con el mercado laboral y la red de egresados.
 
 ## 🚀 Flujo de trabajo integrado
 El proyecto no solo limpia datos, sino que genera productos de valor para la toma de decisiones:
 * Motor de Procesamiento (R): Limpieza lógica, consolidación de bases (Left Joins) y cálculo de parámetros muestrales ($n=270$ con 95% de confianza).
 * Informe Automatizado (INFORME.qmd): Generación de un reporte con estética profesional utilizando Quarto, que incluye visualizaciones de perfil demográfico y análisis de percepción.
 * Visualización (AVANCE.pbix): Modelado de datos para exploración interactiva en Power BI. **[VER DASHBOARD]]**
-
-## 📈 Hallazgos Clave del Análisis:
-El informe revela dimensiones críticas que requieren atención inmediata:
-* Perfil de la Muestra: Predominantemente femenina (62.2%) con una fuerte concentración en la Carrera 1 (46.3%).
-* Infraestructura (Prioridad Crítica): Es la dimensión con mayor insatisfacción (44.5%), principalmente por falta de laboratorios y espacios de estudio.
-* Brecha Académica: Un 42.2% de insatisfacción en el Plan de Estudios debido a una percepción de clases "excesivamente teóricas".
-* Desafío Laboral: Incertidumbre en empleabilidad (37.4% de insatisfacción), donde los estudiantes demandan mejores puentes con el mercado laboral y la red de egresados.
 
 ## 🛠️ Stack Tecnológico
 * R & Quarto: tidyverse, kableExtra para tablas estilizadas, ggplot2 para gráficos de semáforo y stringr para manejo de textos cualitativos.
