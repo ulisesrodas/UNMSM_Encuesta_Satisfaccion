@@ -4,7 +4,7 @@ Este repositorio presenta un ecosistema completo de Ciencia de Datos aplicada a 
 * Infraestructura.
 * Oportunidades laborales.
 
-La base de datos cruda es el archivo `CONOCIMIENTOS.xslx`. Está anonimizada, pero ello no quita fuerza al análisis ni las conclusiones. Para que corra el script, el archivo Excel debe estar en la misma carpeta local.
+La base de datos cruda es el archivo `CONOCIMIENTOS.xslx`. Está anonimizada, pero ello no quita fuerza al análisis ni las conclusiones. Para que corra el archivo `SCRIPT.R`, el Excel debe estar en la misma carpeta local.
 
 ## 📈 Hallazgos Clave del Análisis:
 El informe revela dimensiones críticas que requieren atención inmediata:
