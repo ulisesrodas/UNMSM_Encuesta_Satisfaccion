@@ -11,11 +11,11 @@ El informe revela dimensiones críticas que requieren atención inmediata:
 * **Brecha Académica:** Un 42.2% de insatisfacción en el Plan de Estudios debido a una percepción de clases "excesivamente teóricas".
 * **Desafío Laboral:** Incertidumbre en empleabilidad (37.4% de insatisfacción), donde los estudiantes demandan mejores puentes con el mercado laboral y la red de egresados.
 
-## 🚀 Flujo de trabajo integrado
-El proyecto no solo limpia datos, sino que genera productos de valor para la toma de decisiones. Para ejecutar el proyecto, el archivo `CONOCIMIENTOS.xslx` debe estar en la carpeta local de trabajo.
-* Motor de Procesamiento (R): Limpieza lógica, consolidación de bases (Left Joins) y cálculo de parámetros muestrales ($n=270$ con 95% de confianza).
-* Informe Automatizado (INFORME.qmd): Generación de un reporte con estética profesional utilizando Quarto, que incluye visualizaciones de perfil demográfico y análisis de percepción.
-* Visualización (AVANCE.pbix): Modelado de datos para exploración interactiva en Power BI. **[VER DASHBOARD]]**
+## 🚀 Secuencia de ejección
+* Para ejecutar el proyecto, el archivo `CONOCIMIENTOS.xslx` debe estar en la carpeta local de trabajo. No se toca porque son los datos de los alumnos anonimizados en crudo.
+* 1. SCRIPT.R: Hace la limpieza lógica, consolidación de bases (Left Joins), cálculo de parámetros muestrales ($n=270$ con 95% de confianza) y tablas insumos.
+* 2. INFORME.qmd: Generación de un reporte con estética profesional utilizando Quarto, usando las tablas insumos del script anterior. Incluye visualizaciones de perfil demográfico y análisis de percepción.
+* 3. AVANCE.pbix: Modelado de datos para exploración interactiva en Power BI. Está de acuerdo como se solicita en el archivo xslx: con un corte para ver cómo avanza todo.
 
 ## 🛠️ Stack Tecnológico
 * R & Quarto: tidyverse, kableExtra para tablas estilizadas, ggplot2 para gráficos de semáforo y stringr para manejo de textos cualitativos.
