@@ -1,275 +1,582 @@
----
-title: "Encuesta de Satisfacción Estudiantil"
-subtitle: "Análisis descriptivo: Perfil y percepción de la calidad educativa"
-author: "Ulises Rodas"
-date: last-modified
-lang: es
-format:
-  html:
-    theme: cosmo
-    toc: true
-    toc-title: "Índice de Contenidos"
-    number-sections: true
-    embed-resources: true 
-editor: visual
----
+#-----------------------------------------------------------------------------------------------------#
+############################################# PLAN DE TRABAJO #########################################
+#-----------------------------------------------------------------------------------------------------#
 
-```{r}
-#| label: setup
-#| include: false
+# DESCRIPCIÓN GENERAL:
+# Este script procesa los resultados de la encuesta de satisfacción estudiantil anonimizados de la facultad de Ciencias Sociales UNMSM
+# Toma los datos crudos (universo, recolectados y recuperados), los consolida, depura inconsistencias y genera los insumos gráficos/tabulares
+# Las tablas insumos que serán usados en el reporte final en Quarto y el dashboard en Power BI son:
+## df_limpia
+## tabla_perfil
+## Satisfaccion_Estudiante
 
-# Instalamos en Consola si nos hace falta
-# install.packages("kableExtra")
+# ESTRUCTURA DEL CÓDIGO (ÍNDICE):
+# PASOS PREVIOS: Carga de librerías y lectura de bases de datos desde Excel.
+# ACTIVIDAD 1:   Propuesta técnica de muestreo (Población finita).
+# ACTIVIDAD 2:   Limpieza, renombrado y unión de bases (Left Join).
+# ACTIVIDAD 3:   Limpieza lógica de variables de satisfacción e insatisfacción para su tabulación y graficación
 
-# 1. CARGAAR LIBRERÍAS
-library(tidyverse)
-library(readxl)
-library(knitr)
-library(kableExtra)
-library(scales)
+# NOTAS TÉCNICAS:
+# Asegurarse de tener el archivo "CONOCIMIENTOS.xlsx" en la carpeta raíz de este proyecto.
+# Las salidas (imágenes y Excels) no se guardarán automáticamente en el mismo directorio. Es 
 
-# 2. DEFINIMOS TEMA PARA GRÁFICOS
-tema_informe <- theme_minimal() +
+#-----------------------------------------------------------------------------------------------------#
+########################################## PASOS PREVIOS ##############################################
+#-----------------------------------------------------------------------------------------------------#
+
+# INSTALAR LIBRERÍAS (activarlas)
+# install.packages("janitor") # Limpieza: clean_names
+# install.packages("here") # Uso de archivos en la misma carpeta (no especificamos el directorio)
+# install.packages("samplingbook") # Cálculo de muestra para poblaciones finitas
+# install.packages("scales") # Para usar percent (calcular porcentajes en una tabla)
+# install.packages("gridExtra") # Combinar gráficos en una imagen, usado en sincronía con ggplot2
+
+# CARGA DE LIBRERÍAS
+library(tidyverse) # Manipulación de datos: dplyr, readr, etc.
+library(readxl) # Leer Excel
+library(writexl) # Guardar Excel
+library(janitor) # Limpieza: clean_names
+library(here) # Uso de archivos en la misma carpeta
+library(samplingbook) # Cálculo de muestra para poblaciones finitas
+library(glue) # Redactar párrafos. Viene con Tidyverse
+library(scales) # Para usar percent (calcular porcentajes en una tabla)
+library(gridExtra) # Para agrupar gráficos en una sola imagen
+
+# LLAMANDO ARCHIVO A TRABAJAR
+ruta_excel <- here("CONOCIMIENTOS.xlsx")
+
+# CARGA DE DATOS
+# Obtenemos los nombres de las pestañas
+hojas <- excel_sheets(ruta_excel)
+
+# Cargamos las 3 pestañas necesarias como BD independientes
+# Renombramos según nos indican:
+# 1=Universo, 2=Recolectada (Incompleta), 3=Recuperada (Parche)
+df_universo <- read_excel("CONOCIMIENTOS.xlsx", sheet = hojas[2]) # BD ESTUDIANTES
+df_recolectada <- read_excel("CONOCIMIENTOS.xlsx", sheet = hojas[3]) # BD RECOLECTADA
+df_recuperada <- read_excel("CONOCIMIENTOS.xlsx", sheet = hojas[4]) # BD RECUPERADA
+
+# PRECISÓN METODOLÓGICA
+# Técnicamente, cada pestaña no es una base de datos (BD), sino una tabla que puede llamarse dataframe (df) o dataset
+# Una base de datos es más complejo y está compuesto de varias tablas relacionales, que justamente es el plan de trabajo en este script: obtener tablas relacionadas entre sí
+# Por lo tanto, el producto de este script es una base de datos relacional que podrá visualizarse en Power BI
+
+# LIMPIEZA Y RENOMBRADO
+# Limpiamos los nombres de columnas (quita tildes, espacios, mayúsculas)
+# Chancamos el mismo nombre
+df_universo <- clean_names(df_universo)
+df_recolectada <- clean_names(df_recolectada)
+df_recuperada <- clean_names(df_recuperada)
+
+# Renombramos la primera columna (ID del alumno)
+# Así se garantiza que el cruce funcione sin importar cómo lo haya limpiado janitor (clean_names)
+# Este renombre es vital para la Tarea 2 de la Actividad 3: unir los dataframes df_recolectada y df_recuperada
+colnames(df_universo)[1] <- "codigo_alumno"
+colnames(df_recolectada)[1] <- "codigo_alumno"
+colnames(df_recuperada)[1] <- "codigo_alumno"
+
+# OPCIONAL: VER LOS DATAFRAMES
+# View(df_universo)
+# View(df_recolectada)
+# View(df_recuperada)
+
+# REMOVEMOS DEL ENTORNO
+rm(hojas, ruta_excel)
+
+
+#-----------------------------------------------------------------------------------------------------#
+#################################### ACTIVIDAD 1: PROPUESTA TÉCNICA ###################################
+#-----------------------------------------------------------------------------------------------------#
+
+# TAREA: Crear una propuesta de trabajo y describir qué muestreo usar, qué tamaño de muestra y qué parámetros
+
+# POBLACIÓN (N)
+# De la base de datos estudiantes (llamada df_universo antes)
+N <- nrow(df_universo)
+
+# CÁLCULO DEL TAMAÑO DE MUESTRA (n)
+# Fórmula de poblaciones finitas o conocidas:
+# e = error (0.05), P = proporción/heterogeneidad (0.5), N = población, level = confianza (0.95)
+n <- sample.size.prop(e = 0.05, P = 0.5, N = N, level = 0.95)
+print(n)
+
+# DEFINIMOS MANUALMENTE PARA EL INFORME
+# Esto porque los valores de e, P, N o level aún no están en el environment, solo fueron insumos para la fórmula de muestra (n)
+e <- 0.05
+P <- 0.5
+level = 0.95
+
+# INFORME
+informe_tecnico <- glue(
+  "
+PROPUESTA TÉCNICA DE MUESTREO:
+
+1. TIPO DE ESTUDIO
+   Se propone realizar un estudio de tipo cuantitativo, descriptivo y transversal.
+   El objetivo es medir la satisfacción estudiantil en un momento único del tiempo.
+
+2. DISEÑO MUESTRAL
+   - Unidad de Análisis: Estudiantes matriculados en el periodo actual de la facultad de Ciencias Sociales UNMSM.
+   - Marco Muestral: Base de datos oficial con {N} registros (Universo).
+   - Método de Muestreo: Probabilístico, Aleatorio Estratificado.
+
+   Justificación: Se opta por la estratificación para asegurar que todas las 
+   carreras, independientemente de su tamaño, tengan representación proporcional.
+
+3. FICHA TÉCNICA Y PARÁMETROS
+   Para el cálculo del tamaño de muestra se utilizaron los siguientes parámetros:
+
+   * Población Total (N):      {N} estudiantes
+   * Nivel de Confianza (Z):   95% (Z = {level})
+   * Margen de Error (e):      {e}%
+   * Heterogeneidad (p):       {P} (Varianza máxima)
+
+4. RESULTADO
+   Aplicando la fórmula para poblaciones finitas, el tamaño de muestra mínimo
+   requerido es de: {n} estudiantes.
+"
+)
+
+# IMPRIMIMOS Y GUARDAMOS EN TXT
+cat(informe_tecnico)
+writeLines(informe_tecnico, "Propuesta Metodologica.txt")
+
+# REMOVEMOS DEL ENTORNO
+rm(informe_tecnico, level, P, N, n, e)
+
+
+#-----------------------------------------------------------------------------------------------------#
+################################## ACTIVIDAD 2: UNIR BASES DE DATOS ###################################
+#-----------------------------------------------------------------------------------------------------#
+
+# TAREA: Unir df_recolectada y df_recuperada usando el codigo_alumno como clave
+
+# RECATEGORIZAMOS VARIABLES:
+# Nuevas variables en df_recolectada
+nombres_recolectada <- c(
+  "codigo_alumno",
+  "carrera",
+  "ciclo",
+  "sexo",
+  "sat_plan", # Satisfacción Plan de estudios
+  "motivo_plan", # ¿Por qué no está satisfecho con el Plan?
+  "sat_infra", # Satisfacción infraestructura
+  "motivo_infra", # ¿Por qué no está satisfecho con la infraestructura?
+  "sat_laboral", # Satisfacción de oportunidades laborales
+  "motivo_laboral" # ¿Por qué no está satisfecho con las oportunidades laborales?
+)
+
+# Reemplazando los nuevos nombres
+colnames(df_recolectada) <- nombres_recolectada
+
+# Nuevas variables en df_recuperada
+nombres_recuperada <- c(
+  "codigo_alumno",
+  "carrera",
+  "ciclo",
+  "sexo",
+  "sat_laboral",
+  "motivo_laboral"
+)
+
+# Reemplazando los nuevos nombres
+colnames(df_recuperada) <- nombres_recuperada
+
+# ¿Por qué se hizo esto?
+# Ahora los nombres de las variables son más sencillos y las podemos unir los dataframes con más facilidad
+
+# UNIÓN DE BASES (JOIN): tabla df_consolidado
+# Usamos "codigo_alumno" como llave porque es lo único que coincide en las bases
+# La base recolectada se unirá con la recuperada (en ese orden)
+df_final <- df_recolectada |>
+  left_join(df_recuperada, by = "codigo_alumno", suffix = c("", "_REC")) # Esto último no es necesario, pero es una buena práctica en caso haya columnas iguales
+
+# DEPURAR COLUMNAS
+df_final <- df_final |>
+  mutate(
+    sat_laboral = coalesce(sat_laboral, sat_laboral_REC),
+    motivo_laboral = coalesce(motivo_laboral, motivo_laboral_REC)
+  ) |>
+  select(all_of(nombres_recolectada)) # Nos quedamos solo con las columnas limpias
+
+# REMOVEMOS DEL ENTORNO
+# Nos quedamos con df_recolectada para la tarea 3
+rm(df_universo, df_recuperada, nombres_recolectada, nombres_recuperada)
+
+# RESPUESTA A LA TAREA
+# EL dataframe df_final ES LA UNIÓN DE df_recolectada y df_recperada Y SERÍA LA RESPUESTA
+
+# EXTRA: DESEO SABER CUÁNTOS NAs SE HAN RECUPERADO Y CUÁNTOS SIGUEN REPRESENTES
+# NAs en el dataframe original (recolectada)
+cat("NAs en Base Original:\n")
+print(colSums(is.na(df_recolectada)))
+
+# NAs en el dataframe final (unida) para ver su variación.
+cat("NAs en Base Final:\n")
+print(colSums(is.na(df_final)))
+
+# Vemos que solo ha cambiado en la variable motivo_laboral: Por qué no está satisfecho con las oportunidades laborales
+
+# RESPUESTA COMPLEMENTARIA SOBRE LOS NAs:
+# Se observan aún muchos NAs (solo se recuperaron 21)
+# Posibles causas:
+# 1. Corresponden a estudiantes que tenían datos faltantes en la recolección original y NO fueron ubicados/capturados en la fase de recuperación.
+# 2. Muchos NAs están en la columna de motivo, y esta columna solo se hace a los insatisfechos. Si el estudiante está satisfecho, no contestará.
+
+#-----------------------------------------------------------------------------------------------------#
+################################ ACTIVIDAD 3: REPORTE DEL AVANCE ######################################
+#-----------------------------------------------------------------------------------------------------#
+
+# TAREA 1: VER LA CONSISTENCIA Y LIMPIAR LA BASE CONSOLIDADA (df_final)
+
+# Definimos la regla: Si la satisfacción es >= 4, el motivo de la insatisfacción debe ser NA.
+# Porque marcar 4 o 5 implicaría que está satisfecho, lo cual no tiene sentido al analizar la insatisfacción
+# Puede suceder, por eso es necesario por prevención
+# Usamos case_when
+
+df_limpia <- df_final |>
+  mutate(
+    # 1. Limpieza Satisfacción Plan de estudios
+    motivo_plan = case_when(
+      sat_plan >= 4 ~ NA_character_, # Si es 4 o 5, borra el motivo
+      TRUE ~ motivo_plan # Si no, mantiene lo que haya
+    ),
+
+    # 2. Limpieza Satisfacción Infraestructura
+    motivo_infra = case_when(
+      sat_infra >= 4 ~ NA_character_,
+      TRUE ~ motivo_infra
+    ),
+
+    # 3. Limpieza Satisfacción de Oportunidades laborales
+    motivo_laboral = case_when(
+      sat_laboral >= 4 ~ NA_character_,
+      TRUE ~ motivo_laboral
+    )
+  )
+
+# Vemos la cantidad de inconsistencias corregidas
+inconsistencias <- df_final |>
+  filter(sat_plan >= 4 & !is.na(motivo_plan)) |>
+  nrow()
+
+print(paste("Casos corregidos:", inconsistencias)) # Ningún caso corregido
+
+# Limpiamos el entorno
+# Borrar tabla (dataframe) usado hasta ahora. Nos quedamos con el limpio
+rm(df_final, inconsistencias)
+
+
+# TAREA 2: TABLAS Y GRÁFICOS
+
+############################ A. PERFIL DEL ESTUDIANTE #################################
+
+# TABLAS DE FRECUENCIA
+# Tienen que contener las siguientes características: Carrera, Sexo y Nivel curricular de los alumnos en la facultad
+# Creamos la variable Nivel curricular: Agrupamos los ciclos para tener una variable más resumida
+df_limpia <- df_limpia |> # Chanco la misma tabla para no llenarnos de nombres
+  mutate(
+    nivel_curricular = case_when(
+      ciclo <= 6 ~ "Ciclos Intermedios (5-6)",
+      ciclo <= 8 ~ "Ciclos Avanzados (7-8)",
+      TRUE ~ "Ciclos Finales (9-10)"
+    )
+  )
+
+# Función maestra para obtener en las tablas los valores de las variables de una vez
+resumir_variable <- function(data, variable_col, nombre_seccion) {
+  data |>
+    count({{ variable_col }}) |>
+    mutate(
+      Variable = nombre_seccion,
+      Porcentaje = percent(n / sum(n), accuracy = 0.1)
+    ) |>
+    rename(Categoria = {{ variable_col }}, Frecuencia = n) |>
+    select(Variable, Categoria, Frecuencia, Porcentaje) # Seleccionamos las columnas con nombres limpios de los nombres de las variables, sus categorías, frecuencia y porcentaje
+}
+
+# Creamos las 3 partes, unimos y pegamos
+parte_1 <- resumir_variable(df_limpia, carrera, "Carrera")
+parte_2 <- resumir_variable(df_limpia, sexo, "Sexo")
+parte_3 <- resumir_variable(df_limpia, nivel_curricular, "Nivel Curricular")
+
+tabla_perfil <- bind_rows(parte_1, parte_2, parte_3)
+# View(tabla_perfil)
+
+write_xlsx(tabla_perfil, "tabla_perfil.xlsx") # LO USAREMOS EN EL INFORME QUARTO
+
+# Borramos tablas intermedias
+# tabla_perfil se queda para servir de insumo a los gráficos
+rm(parte_1, parte_2, parte_3, resumir_variable)
+
+# GRÁFICOS:
+# Insumo: tabla_perfil
+df_grafico <- tabla_perfil |>
+  mutate(
+    # A. Usamos 'Porcentaje' en vez de '% Formateado'
+    Porcentaje_Num = as.numeric(gsub("%", "", Porcentaje)),
+
+    # B. Definimos el Orden de las categorías
+    Categoria = factor(
+      Categoria,
+      levels = c(
+        "F",
+        "M", # Sexo
+        "Ciclos Intermedios (5-6)",
+        "Ciclos Avanzados (7-8)",
+        "Ciclos Finales (9-10)", # Niveles
+        "CARRERA 1",
+        "CARRERA 2",
+        "CARRERA 3",
+        "CARRERA 4" # Carreras
+      )
+    )
+  )
+
+# Definición del tema (estética limpia)
+tema_pro <- theme_minimal() +
   theme(
-    plot.title = element_text(face = "bold", size = 11, hjust = 0.5),
-    axis.text = element_text(size = 9),
+    plot.title = element_text(face = "bold", size = 13, hjust = 0.5),
+    axis.text = element_text(size = 10, color = "black"),
     panel.grid.major.x = element_blank(),
     panel.grid.major.y = element_line(color = "gray90"),
     legend.position = "none"
   )
 
-# 3. FUNCIÓN PARA ESTILAR TABLAS
-estilar_tabla <- function(df, caption_text) {
-  df %>%
-    kable(caption = caption_text, align = "c") %>%
-    kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = F)
-}
-```
-
-# Introducción
-
-El presente informe consolida los resultados del levantamiento de información realizado a los estudiantes de la facultad de Ciencias Sociales UNMSM. El objetivo es **diagnosticar el estado actual de la** **satisfacción** en tres dimensiones: Plan de Estudios, Infraestructura y Oportunidades Laborales.
-
-Los datos presentados a continuación provienen de una base depurada y validada, garantizando la consistencia estadística. **Los resultados se dividen en tres bloques:**
-
-1.  **Perfil** **del estudiante:** Se presentan las características inherentes a los integrantes de la facultad, como son Sexo, Nivel curricular cursado y Carrera elegida.
-
-2.  **Satisfacción del estudiante:** Valoración de los servicios de la facultad (Plan de estudios, Infraestrucutra y Oportunidades laborales)
-
-3.  **¿Por qué hay insatisfacción con los servicios?:** Se presenta como complemento a lo anterior. Aquí veremos las respuestas más frecuentes de por qué no están satisfechos los estudiantes con los servicios ofrecidos. Desde luego, esta insatisfacción tiene un sesgo negativo dado que solo analiza a los insatisfechos, pero da un excelente feedback a la facultad para saber áreas de mejoría.
-
-# Perfil del estudiante
-
-La muestra recolectada abarca diversos perfiles demográficos y académicos, asegurando representatividad. Veamos algunos gráficos para explorar la composición de los estudiantes.
-
-```{r}
-#| label: preparacion-datos-perfil
-#| include: false
-
-# 1. CARGAMOS LA TABLA EXCEL GENERADA CON EL ARCHIVO SCRIPT.R (PROCESAMIENTO)
-df_perfil <- read_excel("tabla_perfil.xlsx")
-
-# 2. PREPARAMOS LOS DATOS PARA GRAFICAR
-# (Como el Excel tiene el % como texto "45.3%", hay que volverlo número)
-df_grafico <- df_perfil |>
-  mutate(
-    # Quitamos el "%" y convertimos a número
-    Porc_Num = as.numeric(gsub("%", "", Porcentaje)),
-    
-    # Definimos el ORDEN manual para que no salga alfabético
-    Categoria = factor(Categoria, levels = c(
-      "F", "M",
-      "Ciclos Intermedios (5-6)", "Ciclos Avanzados (7-8)", "Ciclos Finales (9-10)",
-      "CARRERA 1", "CARRERA 2", "CARRERA 3", "CARRERA 4"
-    ))
-  )
-```
-
-```{r}
-#| label: graficos-perfil
-#| echo: false
-#| include: false
-#| fig-height: 4
-#| fig-width: 9
-#| layout-ncol: 2
-
-# GRÁFICO 1: SEXO
-g_sexo <- df_grafico %>%
-  filter(Variable == "Sexo") %>%
-  ggplot(aes(x = Categoria, y = Porc_Num, fill = Categoria)) +
-  geom_col(width = 0.5) +
-  scale_fill_manual(values = c("F" = "#E74C3C", "M" = "#3498DB")) +
-  geom_text(aes(label = Porcentaje), vjust = -0.5, fontface = "bold") +
-  scale_y_continuous(limits = c(0, 100)) +
-  labs(title = "Distribución por Sexo", x = NULL, y = NULL) +
-  tema_informe
-
-# GRÁFICO 2: NIVEL CURRICULAR
-g_nivel <- df_grafico %>%
-  filter(Variable == "Nivel Curricular") %>%
-  ggplot(aes(x = Categoria, y = Porc_Num)) +
-  geom_col(fill = "#27AE60", width = 0.6) +
-  geom_text(aes(label = Porcentaje), vjust = -0.5, fontface = "bold") +
-  scale_y_continuous(limits = c(0, 60)) +
-  labs(title = "Nivel Curricular", x = NULL, y = NULL) +
-  tema_informe
-
-# GRÁFICO 3: CARRERA (Lo hacemos horizontal)
-g_carrera <- df_grafico %>%
-  filter(Variable == "Carrera") %>%
-  ggplot(aes(x = reorder(Categoria, Porc_Num), y = Porc_Num)) +
+# Generación de los gráficos
+# Gráfico 1: Distribución por Carrera
+g_carrera <- df_grafico |>
+  filter(Variable == "Carrera") |> # Filtro corregido (sin números)
+  ggplot(aes(x = reorder(Categoria, Porcentaje_Num), y = Porcentaje_Num)) +
   geom_col(fill = "#2E86C1", width = 0.7) +
   geom_text(aes(label = Porcentaje), hjust = -0.1, fontface = "bold") +
   coord_flip() +
-  scale_y_continuous(limits = c(0, 60)) +
+  scale_y_continuous(limits = c(0, max(df_grafico$Porcentaje_Num) + 15)) + # Un poco más de margen
   labs(title = "Distribución por Carrera", x = NULL, y = NULL) +
-  tema_informe
-```
+  tema_pro +
+  theme(
+    panel.grid.major.x = element_line(color = "gray90"),
+    panel.grid.major.y = element_blank()
+  )
 
-## Sexo
+# Gráfico 2: Distribución por Sexo
+g_sexo <- df_grafico |>
+  filter(Variable == "Sexo") |>
+  ggplot(aes(x = Categoria, y = Porcentaje_Num, fill = Categoria)) +
+  geom_col(width = 0.5) +
+  scale_fill_manual(values = c("F" = "#E74C3C", "M" = "#3498DB")) +
+  geom_text(aes(label = Porcentaje), vjust = -0.5, fontface = "bold") +
+  labs(title = "Distribución por Sexo", x = NULL, y = NULL) +
+  tema_pro
 
-```{r}
-g_sexo
-```
+# Gráfico 3: Nivel curericular
+g_nivel_curricular <- df_grafico |>
+  filter(Variable == "Nivel Curricular") |>
+  ggplot(aes(x = Categoria, y = Porcentaje_Num)) +
+  geom_col(fill = "#27AE60", width = 0.6) +
+  geom_text(aes(label = Porcentaje), vjust = -0.5, fontface = "bold") +
+  labs(title = "Nivel Curricular", x = NULL, y = NULL) +
+  tema_pro
 
-## Nivel curricular
+# Ver y guardar
+print(g_carrera)
+print(g_sexo)
+print(g_nivel_curricular)
 
-```{r}
-g_nivel
-```
+# Opcional: activar si se desean guardar los gráficos de distribución por carrera, sexo y nivel curricular
+# ggsave("Grafico_Carrera.png", g_carrera, width = 8, height = 5)
+# ggsave("Grafico_Sexo.png", g_sexo, width = 5, height = 5)
+# ggsave("Grafico_Nivel_Curricular.png", g_nivel_curricular, width = 7, height = 5)
 
-## Carreras
+# Remover valores creados
+rm(g_carrera, g_nivel_curricular, g_sexo, tema_pro, df_grafico, tabla_perfil)
 
-```{r}
-g_carrera
-```
 
-## **Interpretación del Perfil de la Muestra**
+########################## B. SATISFACCIÓN DEL ESTUDIANTE #############################
 
-La muestra analizada ($n=270$) presenta una composición demográfica predominantemente **femenina (62.2%)**. Respecto al **nivel curricular**, el estudio logra representatividad en todas las etapas formativas. Si bien el grupo mayoritario corresponde a los **Ciclos Intermedios (45.6%)**, existe una aceptable participación de estudiantes de ciclos avanzados y finales, lo que permite contrastar la visión del estudiante en proceso frente a la del estudiante próximo a egresar.
+# BLOQUE 1: PREGUNTAS DE SATISFACCIÓN (VARIABLES NUMÉRICAS)
 
-Finalmente, en cuanto a la distribución académica, se observa una concentración significativa en la **Carrera 1**, que agrupa al **46.3%** de los encuestados, seguida por la Carrera 4 (32.2%); esto sugiere que los resultados generales del estudio estarán fuertemente influenciados por la experiencia educativa de estas dos escuelas principales.
-
-# Satisfacción del estudiante
-
-```{r}
-#| label: prep-graficos-satisfaccion
-#| include: false
-
-# 1. DEFINIMOS COLORES (Semáforo)
-colores_sat <- c(
-  "Muy Insatisfecho" = "#E74C3C", # Rojo
-  "Insatisfecho"     = "#E67E22", # Naranja
-  "Indiferente"      = "#F1C40F", # Amarillo
-  "Satisfecho"       = "#2ECC71", # Verde Claro
-  "Muy Satisfecho"   = "#27AE60"  # Verde Oscuro
+# TABLAS
+# Definimos las etiquetas de texto para la escala 1-5
+etiquetas_likert <- c(
+  "1" = "Muy Insatisfecho",
+  "2" = "Insatisfecho",
+  "3" = "Indiferente",
+  "4" = "Satisfecho",
+  "5" = "Muy Satisfecho"
 )
 
-# 2. FUNCIÓN MAESTRA: Lee Excel -> Limpia -> Grafica
-graficar_excel_sat <- function(nombre_archivo, nombre_hoja, titulo) {
-  
-  # A. Leer y Limpiar (agregamos el argumento 'sheet')
-  datos <- read_excel(nombre_archivo, sheet = nombre_hoja) %>%
-    filter(Categoria != "Total") %>% 
+tabla_satis <- function(data, columna) {
+  # Paso A: Calcular conteos y porcentajes
+  tabla_base <- data %>%
+    filter(!is.na({{ columna }})) %>%
+    count({{ columna }}) %>%
     mutate(
-      Porc_Num = as.numeric(gsub("%", "", Porcentaje)),
-      Categoria = factor(Categoria, levels = c(
-        "Muy Insatisfecho", "Insatisfecho", "Indiferente", 
-        "Satisfecho", "Muy Satisfecho"
-      ))
+      Categoria = etiquetas_likert[as.character({{ columna }})], # Pone el nombre
+      Porcentaje_Txt = percent(n / sum(n), accuracy = 0.1) # Solo guarda el texto bonito (ej: 15.2%)
     )
-  
-  # B. Graficar
-  ggplot(datos, aes(x = Categoria, y = Porc_Num, fill = Categoria)) +
-    geom_col(width = 0.6) +
-    scale_fill_manual(values = colores_sat) +
-    geom_text(aes(label = Porcentaje), vjust = -0.5, fontface = "bold", size = 3.5) +
-    scale_y_continuous(limits = c(0, max(datos$Porc_Num) + 10)) + # Margen arriba
+
+  # Paso B: Crear la fila de TOTAL
+  fila_total <- tibble(
+    Categoria = "Total",
+    n = sum(tabla_base$n),
+    Porcentaje_Txt = "100.0%"
+  )
+
+  # Paso C: Unir y Seleccionar solo lo que pides
+  bind_rows(tabla_base, fila_total) %>%
+    select(Categoria, Frecuencia = n, Porcentaje = Porcentaje_Txt)
+}
+
+# Guardamos todo en un solo archivo, diferentes pestañas
+# Generamos las tablas
+tabla_satis_plan <- tabla_satis(df_limpia, sat_plan)
+tabla_satis_infra <- tabla_satis(df_limpia, sat_infra)
+tabla_satis_laboral <- tabla_satis(df_limpia, sat_laboral)
+
+# Preparamos una lista
+lista_tablas <- list(
+  "Satisfaccion_Plan" = tabla_satis_plan,
+  "Satisfaccion_Infra" = tabla_satis_infra,
+  "Satisfaccion_Laboral" = tabla_satis_laboral
+)
+
+# Guardamos la lista en un solo archivo
+write_xlsx(lista_tablas, "Satisfaccion_Estudiante.xlsx") # LO USAREMOS EN EL INFORME QUARTO
+
+# Guardamos la VERSIÓN FINAL de df_limpia
+write_xlsx(df_limpia, "df_limpia.xlsx") # LO USAREMOS EN EL INFORME QUARTO
+
+# No eliminamos las tablas de satisfacción para su visualización
+# rm(lista_tablas)
+
+# GRÁFICOS
+# Definición de colores y etiquetas: semáforo (Rojo a Verde)
+# Esto porque ahora estamos graficando satisfacción, que es una escala de valoración
+colores_semaforo <- c(
+  "Muy Insatisfecho" = "#E74C3C", # Rojo
+  "Insatisfecho" = "#E67E22", # Naranja
+  "Indiferente" = "#F1C40F", # Amarillo
+  "Satisfecho" = "#2ECC71", # Verde Claro
+  "Muy Satisfecho" = "#27AE60" # Verde Oscuro
+)
+
+# Función graficado
+graficar_satisfaccion <- function(data, columna, titulo) {
+  # A. Preparar datos (Contar y Calcular %)
+  datos_grafico <- data %>%
+    filter(!is.na({{ columna }})) %>%
+    count({{ columna }}) %>%
+    mutate(
+      # Convertimos el número 1,2.. a Texto con Etiqueta
+      Categoria = etiquetas_likert[as.character({{ columna }})],
+
+      # Aseguramos el orden lógico (para que el gráfico no salga desordenado)
+      Categoria = factor(
+        Categoria,
+        levels = c(
+          "Muy Insatisfecho",
+          "Insatisfecho",
+          "Indiferente",
+          "Satisfecho",
+          "Muy Satisfecho"
+        )
+      ),
+
+      Porcentaje_Num = n / sum(n),
+      Label_Txt = percent(Porcentaje_Num, accuracy = 0.1)
+    )
+
+  # Crear el gráfico
+  ggplot(
+    datos_grafico,
+    aes(x = Categoria, y = Porcentaje_Num, fill = Categoria)
+  ) +
+    geom_col(width = 0.6, color = "black", linewidth = 0.2) + # Barras con borde fino
+    scale_fill_manual(values = colores_semaforo) + # ¡Aquí usa los colores definidos arriba!
+    geom_text(
+      aes(label = Label_Txt),
+      vjust = -0.5,
+      fontface = "bold",
+      size = 4
+    ) +
+    scale_y_continuous(
+      labels = percent,
+      limits = c(0, max(datos_grafico$Porcentaje_Num) * 1.2)
+    ) +
     labs(title = titulo, x = NULL, y = NULL) +
     theme_minimal() +
     theme(
-      plot.title = element_text(face = "bold", size = 11, hjust = 0.5),
-      axis.text.x = element_text(angle = 15, hjust = 0.5, size = 9), # Texto inclinado
-      panel.grid.major.x = element_blank(),
-      panel.grid.major.y = element_line(color = "gray90"),
-      legend.position = "none"
+      plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+      axis.text.x = element_text(size = 10, angle = 10, hjust = 0.5), # Texto un poco inclinado
+      legend.position = "none",
+      panel.grid.major.x = element_blank()
     )
 }
 
-# 3. GENERAMOS LOS 3 GRÁFICOS (En memoria)
-g_sat_plan <- graficar_excel_sat("Satisfaccion_Estudiante.xlsx", "Satisfaccion_Plan", "Satisfacción: Plan de Estudios")
-g_sat_infra  <- graficar_excel_sat("Satisfaccion_Estudiante.xlsx", "Satisfaccion_Infra", "Satisfacción: Infraestructura")
-g_sat_laboral <- graficar_excel_sat("Satisfaccion_Estudiante.xlsx", "Satisfaccion_Laboral", "Satisfacción: Oportunidades Laborales")
-```
+# Gráfico 1: Plan de Estudios
+g_sat_plan <- graficar_satisfaccion(
+  df_limpia,
+  sat_plan,
+  "Satisfacción: Plan de Estudios"
+)
+# Gráfico 2: Infraestructura
+g_sat_infra <- graficar_satisfaccion(
+  df_limpia,
+  sat_infra,
+  "Satisfacción: Infraestructura"
+)
+# Gráfico 3: Oportunidades Laborales
+g_sat_laboral <- graficar_satisfaccion(
+  df_limpia,
+  sat_laboral,
+  "Satisfacción: Oportunidades Laborales"
+)
 
-## Plan de estudios
+# Mostrar en pantalla
+print(g_sat_plan)
+print(g_sat_infra)
+print(g_sat_laboral)
 
-```{r}
-g_sat_plan
-```
+# Guardar acativado: La satisfacción me parece más interesante
+# ggsave("Grafico_Sat_Plan.png", g_sat_plan, width = 7, height = 5)
+# ggsave("Grafico_Sat_Infra.png", g_sat_infra, width = 7, height = 5)
+# ggsave("Grafico_Sat_Laboral.png", g_sat_laboral, width = 7, height = 5)
 
-## Infraestructura
+# Eliminamos
+rm(g_sat_plan, g_sat_infra, g_sat_laboral)
 
-```{r}
-g_sat_infra
-```
+################ C. EXPLICACIONES DE LA INSATISFACCIÓN DEL ESTUDIANTE #################
 
-## Oportunidades laborales
+# Aquí vamos directamente con los gráficos.
+# La tabla a usar será df_limpia que ya contiene todas las variables
+# Nos interesan las variables motivo: ¿Por qué no estás satisfecho con...?
 
-```{r}
-g_sat_laboral
-```
-
-## Interpretación
-
-A partir del análisis descriptivo de la muestra ($n=270$), se derivan las siguientes conclusiones estratégicas para la gestión de la Facultad:
-
-1.  **Polarización académica y actualización:**
-
-    La evaluación del **Plan de Estudios** revela una división marcada en el estudiantado. Con un **42.2% de insatisfacción** (sumatoria de *Insatisfecho* y *Muy Insatisfecho*), existe una señal clara de alerta. Los resultados apuntan a la necesidad de revisar la vigencia de las mallas curriculares, pues una parte significativa del alumnado percibe una desconexión entre los contenidos impartidos y las exigencias actuales.
-
-2.  **Prioridad crítica en Infraestructura:**
-
-    La dimensión de **Infraestructura** presenta los indicadores más alarmantes, con un **44.5% de los estudiantes insatisfechos** (sumatoria de *Insatisfecho* y *Muy Insatisfecho*). La evidencia sugiere que la carencia de espacios adecuados de estudio y laboratorios está impactando negativamente la experiencia universitaria diaria. Se recomienda priorizar la inversión en mantenimiento y habilitación de espacios a corto plazo.
-
-3.  **Desafío en empleabilidad:**
-
-    La percepción sobre **Oportunidades Laborale**s refleja incertidumbre y descontento (**37.4% de insatisfacción** y **21.1% de indiferencia**). Esta percepción negativa sugiere la urgencia de fortalecer la oficina de bolsa de trabajo y generar nuevos convenios de prácticas pre-profesionales para mejorar la inserción laboral de los egresados.
-
-# ¿Por qué hay insatisfacción con los servicios?
-
-```{r}
-#| include: false
-
-# Cargamos las librerías necesarias
-library(tidyverse)
-library(stringr)
-library(readxl)
-library(scales)
-
-# 1. FUNCIÓN MAESTRA PARA ANALIZAR MOTIVOS: VERSIÓN LOLLIPOP
-# Esta función transforma las barras simples en un diseño de puntos y líneas más limpio.
+# FUNCIÓN MAESTRA PARA ANALIZAR MOTIVOS: VERSIÓN LOLLIPOP
 graficar_motivos <- function(data, columna, titulo, color_barra) {
-  
   # A. Preparar la tabla de frecuencias
   data_motivos <- data |>
-    filter(!is.na({{ columna }})) |> 
+    filter(!is.na({{ columna }})) |> # Quitamos a los que no respondieron
     count({{ columna }}, name = "Frecuencia") |>
     mutate(
       Porcentaje = Frecuencia / sum(Frecuencia),
       Label_Txt = scales::percent(Porcentaje, accuracy = 0.1),
-      
-      # Limpieza: Primera letra en mayúscula (útil si vienen de sistemas en MAYÚSCULAS)
+
+      # str_to_sentence pasa todo a minúsculas excepto la primera letra
+      # Esto porque las variables están en mayúsculas
       Categoria_Limpia = stringr::str_to_sentence({{ columna }}),
-      
-      # Ajuste de texto largo para que no se salga del gráfico
+
+      # Aplicamos str_wrap a la categoría ya limpia y ampliamos el ancho a 35
       Categoria_Wrap = str_wrap(Categoria_Limpia, width = 35)
     ) |>
-    arrange(desc(Frecuencia)) 
+    arrange(desc(Frecuencia)) # Ordenamos de mayor a menor
 
-  # B. Generar Gráfico tipo Lollipop
-  ggplot(data_motivos, aes(x = reorder(Categoria_Wrap, Frecuencia), y = Frecuencia)) +
-    # Línea del lollipop
+  # B. Generar Gráficos Lollipops
+  ggplot(
+    data_motivos,
+    aes(x = reorder(Categoria_Wrap, Frecuencia), y = Frecuencia)
+  ) +
+    # geom_segment: gráfico de línea
     geom_segment(
       aes(
         x = reorder(Categoria_Wrap, Frecuencia),
@@ -280,74 +587,84 @@ graficar_motivos <- function(data, columna, titulo, color_barra) {
       color = color_barra,
       linewidth = 1.2
     ) +
-    # Cabeza del lollipop (el punto)
+    # Añadimos geom_point (la cabeza del lollipop)
     geom_point(color = color_barra, size = 5) +
-    # Etiquetas de porcentaje
+    # Ajustamos el texto para que no se superponga con el punto
     geom_text(
       aes(label = Label_Txt),
-      hjust = -0.4, 
+      hjust = -0.4, # Lo empujamos más a la derecha
       fontface = "bold",
       size = 4,
-      color = "grey30"
+      color = "grey30" # Un gris oscuro para mayor elegancia
     ) +
-    coord_flip() + 
-    # Damos espacio extra a la derecha para que el texto no se corte
-    scale_y_continuous(limits = c(0, max(data_motivos$Frecuencia) * 1.3)) + 
+    coord_flip() + # Giramos para leer bien
+    scale_y_continuous(limits = c(0, max(data_motivos$Frecuencia) * 1.3)) + # Más margen para el texto
     labs(
       title = paste("Motivos de Insatisfacción:", titulo),
       subtitle = "Frecuencia de menciones por los estudiantes insatisfechos",
       x = NULL,
-      y = NULL
+      y = NULL # Eliminamos la etiqueta "Cantidad de Estudiantes" por redundancia
     ) +
     theme_minimal() +
     theme(
-      plot.title = element_text(face = "bold", size = 14, hjust = 0),
-      plot.subtitle = element_text(size = 11, color = "gray30"),
-      axis.text.y = element_text(size = 10, color = "black"),
-      # Limpieza visual absoluta
-      axis.text.x = element_blank(), 
-      panel.grid = element_blank() 
+      plot.title = element_text(face = "bold", size = 14, hjust = -0),
+      plot.subtitle = element_text(size = 11, hjust = 0.3, color = "gray30"),
+      axis.text.y = element_text(size = 10, color = "black"), # Texto de las quejas
+
+      # Limpieza visual del fondo y eje X
+      axis.text.x = element_blank(), # Escondemos los números del eje inferior
+      panel.grid = element_blank() # Apagamos todas las líneas de la cuadrícula
     )
 }
 
-# 2. CARGA DE DATOS
-df_limpia <- read_excel("df_limpia.xlsx")
+# Generar gráficos: ¿Por qué motivos no están satisfechos con...?
+# Motivos Plan de Estudios
+g_motivo_plan <- graficar_motivos(
+  df_limpia, # Por eso es importante no borrar esta base
+  motivo_plan,
+  "Plan de Estudios",
+  "#CD6155"
+)
 
-# 3. GENERACIÓN DE LOS OBJETOS DE GRÁFICO
-# Plan de Estudios
-g_motivo_plan <- graficar_motivos(df_limpia, motivo_plan, "Plan de Estudios", "#CD6155")
+# Motivos Infraestructura
+g_motivo_infra <- graficar_motivos(
+  df_limpia,
+  motivo_infra,
+  "Infraestructura",
+  "#AF601A"
+)
 
-# Infraestructura
-g_motivo_infra <- graficar_motivos(df_limpia, motivo_infra, "Infraestructura", "#AF601A")
+# Motivos Laborales
+g_motivo_laboral <- graficar_motivos(
+  df_limpia,
+  motivo_laboral,
+  "Oportunidades Laborales",
+  "#7D3C98"
+)
 
-# Oportunidades Laborales
-g_motivo_laboral <- graficar_motivos(df_limpia, motivo_laboral, "Oportunidades Laborales", "#7D3C98")
-```
+print(g_motivo_plan)
+print(g_motivo_infra)
+print(g_motivo_laboral)
 
-## Plan de estudios
+# Guardamos
+# ggsave("Motivo_Plan.png", plot = g_motivo_plan, width = 8, height = 5)
+# ggsave("Motivo_Infra.png", plot = g_motivo_infra, width = 8, height = 5)
+# ggsave("Motivo_Laboral.png", plot = g_motivo_laboral, width = 8, height = 5)
 
-```{r}
-g_motivo_plan
-```
+# Dejo a motivo_plan como tabla de referencia de los gráficos más interesantes
+rm(
+  graficar_motivos,
+  colores_semaforo,
+  graficar_satisfaccion,
+  g_motivo_infra,
+  g_motivo_laboral,
+  g_motivo_plan,
+  etiquetas_likert,
+  tabla_satis
+)
 
-## Infraestructura
+#-------------------------------------------------------------------------------------------#
+################################### FIN DEL CÓDIGO ##########################################
+#-------------------------------------------------------------------------------------------#
 
-```{r}
-g_motivo_infra
-```
-
-## Oportunidades laborales
-
-```{r}
-g_motivo_laboral
-```
-
-## Interpretación
-
-Al desagregar las respuestas de los estudiantes que manifestaron insatisfacción (1 y 2), se identificaron patrones claros que explican la problemática en cada dimensión:
-
-- **Plan de Estudios (Brecha Teórico-Práctica):** La queja predominante, "*Actualizar los cursos*", revela una demanda por obtener mayores conocimientos y más actuales, sintiendo que se quedan desfazados frente a las nuevas tecnologías o tendencias. Por otro lado, *"Las clases son muy teóricas"*, revela la necesidad de metodologías más aplicadas.
-
-- **Infraestructura (Déficit de Espacios):** Los reclamos se concentran en aspectos tangibles y funcionales. La *"Falta de laboratorios disponibles"* y los *"Pocos espacios para el estudio"* son los motivos recurrentes. Esto indica que la infraestructura actual no está soportando adecuadamente la vida académica fuera del aula, limitando el trabajo autónomo y la investigación.
-
-- **Oportunidades Laborales (Desconexión con el Mercado):** Existe una crítica estructural hacia la gestión de la empleabilidad. Los estudiantes señalan que *"Las oportunidades laborales son pocas"* y demandan explícitamente *"Mejorar la comunicación con los egresados"*. Esto evidencia una percepción de aislamiento: el alumno siente que la facultad no está tendiendo los puentes necesarios con el mercado laboral real ni aprovechando su red de exalumnos (alumni).
+# Siguiente paso: ir al archivo qmd: INFORME.qmd
