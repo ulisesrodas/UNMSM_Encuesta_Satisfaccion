@@ -13,9 +13,9 @@ El informe revela dimensiones críticas que requieren atención inmediata:
 
 ## 🚀 Secuencia de ejección
 * Para ejecutar el proyecto, el archivo `CONOCIMIENTOS.xslx` debe estar en la carpeta local de trabajo. No se toca porque son los datos de los alumnos anonimizados en crudo.
-* 1. SCRIPT.R: Hace la limpieza lógica, consolidación de bases (Left Joins), cálculo de parámetros muestrales ($n=270$ con 95% de confianza) y tablas insumos.
-* 2. INFORME.qmd: Generación de un reporte con estética profesional utilizando Quarto, usando las tablas insumos del script anterior. Incluye visualizaciones de perfil demográfico y análisis de percepción.
-* 3. AVANCE.pbix: Modelado de datos para exploración interactiva en Power BI. Está de acuerdo como se solicita en el archivo xslx: con un corte para ver cómo avanza todo.
+* **SCRIPT.R:** Hace la limpieza lógica, consolidación de bases (Left Joins), cálculo de parámetros muestrales ($n=270$ con 95% de confianza) y tablas insumos.
+* **INFORME.qmd:** Generación de un reporte con estética profesional utilizando Quarto, usando las tablas insumos del script anterior. Incluye visualizaciones de perfil demográfico y análisis de percepción.
+* **AVANCE.pbix:** Modelado de datos para exploración interactiva en Power BI. Está de acuerdo como se solicita en el archivo xslx: con un corte para ver cómo avanza todo.
 
 ## 🛠️ Stack Tecnológico
 * R & Quarto: tidyverse, kableExtra para tablas estilizadas, ggplot2 para gráficos de semáforo y stringr para manejo de textos cualitativos.
