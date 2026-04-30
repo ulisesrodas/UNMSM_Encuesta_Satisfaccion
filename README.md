@@ -4,8 +4,11 @@ Este repositorio presenta un ecosistema completo de Ciencia de Datos aplicada a 
 * **Satisfacción del estudiante:** Valoración de los servicios de la facultad (Plan de estudios, Infraestrucutra y Oportunidades laborales)
 * **¿Por qué hay insatisfacción con los servicios?:** Se presenta como complemento a lo anterior. Aquí veremos las respuestas más frecuentes de por qué no están satisfechos los estudiantes con los servicios ofrecidos. Desde luego, esta insatisfacción tiene un sesgo negativo dado que solo analiza a los insatisfechos, pero da un excelente feedback a la facultad para saber áreas de mejoría.
 
+# 🧐 Problemática:
+Los ejes de satisfacción se realizan teniendo en cuenta que hubo un problema y algunas encuestas no se aplicaron bien. El desafío del ejercicio visto en `CONOCIMIENTOS.xslx` es unir la base pre y post problema para luego analizar los resultados.
+
 ## 📈 Hallazgos Clave del Análisis:
-El informe revela dimensiones críticas que requieren atención inmediata:
+El informe final revela dimensiones críticas que requieren atención inmediata:
 * **Perfil de la Muestra**: Predominantemente femenina (62.2%) con una fuerte concentración en la Carrera 1 (46.3%).
 * **Infraestructura (Prioridad Crítica)**: Es la dimensión con mayor insatisfacción (44.5%), principalmente por falta de laboratorios y espacios de estudio.
 * **Brecha Académica:** Un 42.2% de insatisfacción en el Plan de Estudios debido a una percepción de clases "excesivamente teóricas".
@@ -15,8 +18,7 @@ El informe revela dimensiones críticas que requieren atención inmediata:
 Para ejecutar el proyecto, el archivo `CONOCIMIENTOS.xslx` debe estar en la carpeta local de trabajo. Contiene la base de datos en crudo y las instrucciones que desarrollan los demás archivos de este repositorio.
 * **SCRIPT.R:** Hace la limpieza lógica, consolidación de bases (Left Joins), cálculo de parámetros muestrales ($n=270$ con 95% de confianza) y tablas insumos.
 * **INFORME.qmd:** Generación de un reporte con estética profesional utilizando Quarto, usando las tablas insumos del script anterior. Incluye visualizaciones de perfil demográfico y análisis de percepción.
-* **AVANCE.pbix:** Modelado de datos para exploración interactiva en Power BI. Está de acuerdo como se solicita en el archivo xslx: con un corte para ver cómo avanza todo.
-
+* **AVANCE.pbix:** Modelado de datos para exploración interactiva en Power BI con las encuestas alcanzadas hasta el momento y sus resultados.
 ## 🛠️ Stack Tecnológico
 * R & Quarto: tidyverse, kableExtra para tablas estilizadas, ggplot2 para gráficos de semáforo y stringr para manejo de textos cualitativos.
 * Power BI: Modelado relacional y DAX para el dashboard interactivo.
